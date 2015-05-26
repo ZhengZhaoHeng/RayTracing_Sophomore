@@ -68,7 +68,7 @@ public:
 	~Sphere(){}
 	int get_type(){ return SPHERE; }
 	Vector3D& get_center(){ return _center; }
-	Vector3D get_normal(Vector3D& pos){ return (pos - _center) * _radius; }
+	Vector3D get_normal(Vector3D& pos){ return (pos - _center) * _r_radius; }
 	double get_sq_radius(){ return _sq_radius; }
 	int intersect(Ray& ray, double& dist);
 

@@ -93,30 +93,73 @@ Primitive* Camera::rayTracing(Ray& ray, Color& color, int depth, double r_index,
 	}
 	else
 	{
-		Vector3D pnt = ray.get_origin() + ray.get_direction() * dist;	
+		Vector3D pnt = ray.get_origin() + ray.get_direction() * dist;
+		//trace light
 		for (int i = 0; i < _scene->get_num_prim(); i++)
 		{
 			Primitive* temp = _scene->get_primitive(i);
 			if (temp->isLight())
 			{
+				double shadow = 1.0;
 				Primitive* light = temp;
 				Vector3D l = ((Sphere*)light)->get_center() - pnt;
-				l.normalize();
+				//calculate the shadow
+				if (light->get_type() == Primitive::SPHERE)
+				{
+					double l_dist = l.length();
+					l.normalize();
+					Ray l_ray(pnt + l * EPS, l);
+					for (int j = 0; j < _scene->get_num_prim(); j++)
+					{
+						Primitive* obstacle = _scene->get_primitive(j);
+						if (obstacle != light && obstacle->intersect(l_ray, l_dist))
+						{
+							shadow = 0;
+							break;
+						}
+
+					}
+
+				}
+				//calculate the diffuse component
 				Vector3D n = prim->get_normal(pnt);
 				if (prim->get_material().get_diff() > 0)
 				{
 					double d = dot(n, l);
 					if (d > 0)
 					{
-						double diffuse = d * prim->get_material().get_diff();
-						//std::cout << diffuse <<std::endl;
+						double diffuse = d * prim->get_material().get_diff() * shadow;
 						color = color + diffuse * prim->get_material().get_color() * light->get_material().get_color();
-						/*std::cout << diffuse<<  ' ' << color._x << ' ' << 
-							prim->get_material().get_color()._x << ' ' <<
-							light->get_material().get_color()._x << std::endl;*/
+					}
+				}
+				//calculate the specular component(high light)
+				if (prim->get_material().get_spec() > EPS)
+				{
+					Vector3D v = ray.get_direction();
+					Vector3D r = l - 2 * dot(l, n) * n;
+					double d = dot(v, r);
+					if (d > 0)
+					{
+						double spec = pow(d, 20) * prim->get_material().get_spec() * shadow;
+						color = color + spec * light->get_material().get_color();
 					}
 				}
 			}
+		}
+		//calculate the reflection
+		double ref_rate = prim->get_material().get_refl();
+		if (ref_rate > EPS)
+		{
+			Vector3D n = prim->get_normal(pnt);
+			Vector3D r = ray.get_direction() - 2 * dot(ray.get_direction(), n) * n;
+			if (depth < TRACEDEPTH)
+			{
+				Color refl_color(0, 0, 0);
+				double refl_dist = 0;
+				rayTracing(Ray(pnt + r * EPS, r), refl_color, depth + 1, r_index, refl_dist);
+				color = color + ref_rate * refl_color * prim->get_material().get_color();
+			}
+
 		}
 	}
 	return prim;

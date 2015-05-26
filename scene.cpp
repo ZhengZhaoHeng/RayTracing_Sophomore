@@ -1,8 +1,8 @@
 #include "scene.h"
 
 Material::Material() :
-	_color( Color( 0.2f, 0.2f, 0.2f ) ),
-	_refl( 0 ), _diff( 0.2f )
+	_color( Color( 0.2, 0.2, 0.2 ) ),
+	_refl( 0 ), _diff( 0.2 )
 {
 }
 
@@ -73,16 +73,16 @@ void Scene::initScene()
 	_primitives.back()->set_name("small shphere");
 	_primitives.back()->get_material().set_ref(1.0);
 	_primitives.back()->get_material().set_diff(0.1);
-	_primitives.back()->get_material().set_color(Color(0.7, 0.1, 1.0));
+	_primitives.back()->get_material().set_color(Color(0.7, 0.7, 1.0));
 	// light source 1
 	_primitives.push_back(new Sphere(Vector3D(0, 5, 5), 0.1));
 	_primitives.back()->set_light(true);
-	_primitives.back()->get_material().set_color(Color(0.6, 0.6, 0.6));
+	_primitives.back()->get_material().set_color(Color(0.4, 0.4, 0.4));
 	// light source 2
 	_primitives.push_back(new Sphere(Vector3D(2, 5, 1), 0.1));
 	_primitives.back()->set_name("light");
 	_primitives.back()->set_light(true);
-	_primitives.back()->get_material().set_color(Color(0.7, 0.7, 0.9));
+	_primitives.back()->get_material().set_color(Color(0.6, 0.6, 0.8));
 }
 
 Scene::~Scene()

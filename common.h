@@ -19,6 +19,7 @@ public:
 	Vector3D(double x, double y, double z):_x(x), _y(y), _z(z){}
 	~Vector3D(){}
 	void normalize();
+	double length();
 	friend Vector3D operator +(const Vector3D& v1, const Vector3D& v2){ return Vector3D(v1._x + v2._x, v1._y + v2._y, v1._z + v2._z); }
 	friend Vector3D operator -(const Vector3D& v1, const Vector3D& v2){ return Vector3D(v1._x - v2._x, v1._y - v2._y, v1._z - v2._z); }
 	friend Vector3D operator /(const Vector3D& v, const double& rate){ return Vector3D(v._x / rate, v._y / rate, v._z / rate); }

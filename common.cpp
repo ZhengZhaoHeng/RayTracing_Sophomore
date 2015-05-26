@@ -17,3 +17,8 @@ void Vector3D::normalize()
 	_y = _y / len;
 	_z = _z / len;
 }
+
+double Vector3D::length()
+{
+	return sqrt(sqr(_x) + sqr(_y) + sqr(_z));
+}
