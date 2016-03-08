@@ -33,6 +33,7 @@ public:
 	double get_spec(){ return _spec; }
 	void set_diff_refl(double diff_refl){ _diff_refl = diff_refl; }
 	double get_diff_refl(){ return _diff_refl; }
+	void set_uv(double u, double v){ _uscale = u; _vscale = v; }
 	void set_texture(const char* filename)
 	{
 		_textured = true;
@@ -40,8 +41,8 @@ public:
 	}
 	Vector3D get_texture(double u, double v)
 	{
-		int x = ((int)(u * _texture->width) * _uscale) % _texture->width;
-		int y = ((int)(v * _texture->height) * _vscale) % _texture->height;
+		int x = (int)((u * _texture->width) * _uscale) % _texture->width;
+		int y = (int)((v * _texture->height) * _vscale) % _texture->height;
 		return _color * Vector3D(double((unsigned char)(_texture->imageData[y * _texture->widthStep + x * 3 + 2])) / 255,
 			double((unsigned char)(_texture->imageData[y * _texture->widthStep + x * 3 + 1])) / 255,
 			double((unsigned char)(_texture->imageData[y * _texture->widthStep + x * 3])) / 255);
@@ -56,8 +57,8 @@ private:
 	double _refr_index;
 	double _spec;
 	double _diff_refl;
-	int _uscale;
-	int _vscale;
+	double _uscale;
+	double _vscale;
 	IplImage* _texture;
 	bool _textured;
 };
@@ -168,7 +169,6 @@ public:
 	void set_light(bool a_Light );
 	double calculateShade(Vector3D& pos);
 	AABB get_box() { return _box; }
-protected:
 	AABB _box;
 	double* _grid;
 };
@@ -179,13 +179,12 @@ public:
 	Triangle(Vector3D p1, Vector3D p2, Vector3D p3);
 	~Triangle(){}
 	int get_type(){ return TRIANGLE;}
-	Vector3D get_normal(Vector3D& pos){ return _n;}
+	Vector3D get_normal(Vector3D& pos);
 	int intersect(Ray& ray, double& dist);
 	bool intersectBox(AABB& box);
+	Color get_color(Vector3D& pos);
 	AABB get_box();
-
-private:
-	Vector3D _p1, _p2, _p3;
+	Vector3D _p3, _p1, _p2, _vn1, _vn2, _vn3, _vt1, _vt2, _vt3;
 	Vector3D _n;
 };
 class ObjList
@@ -215,6 +214,9 @@ public:
 	int get_num_light(){ return _n_lights; }
 	Primitive* get_light(int idx){ return _lights[idx]; }
 	AABB& get_extends(){ return _extends; }
+	void loadObj(Vector3D& axis, const char* file_name);
+	void loadSketchUp(Vector3D& axis, std::string file_name);
+
 private:
 	Primitive** _primitives;
 	Primitive** _lights;

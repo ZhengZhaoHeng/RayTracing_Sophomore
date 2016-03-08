@@ -25,6 +25,7 @@ private:
 
 class Scene;
 class Primitive;
+class KDTree;
 class Camera
 {
 public:
@@ -33,20 +34,22 @@ public:
 	void setPhoto(IplImage*, int, int);
 	Scene* get_scene(){ return _scene;}
 	Primitive* rayTracing(Ray& ray, Color& color, int depth, double r_index, double dist);
-	Primitive* renderRay(Vector3D& pos, Color& color);
+	Primitive* renderRay(Vector3D& pos, Vector3D& src, Color& color);
 	int findNest(Ray& ray, double& dist, Primitive*& prim);
 	void initRender(Vector3D& pos, Vector3D& target);
 	void renderPart(int x1, int x2, int y1, int y2);
 	void render();
-	double calculateShade(Primitive* prim, Vector3D& pos, Vector3D& l);
+	double calculateShade(Primitive* prim, Vector3D& pos, Vector3D& l, int depth);
 
 protected:
-	Vector3D _origin, _p1, _p2, _p3, _p4, _dx, _dy;
+	Vector3D _origin, _p1, _p2, _p3, _p4, _dx, _dy, _axis_x, _axis_y;
 	Scene* _scene;
 	IplImage* _img;
 	int _width, _height;
 	Vector3D _sr, _cw;
 	int _n_id;
+	double _aperture;
+	KDTree* _tree;
 };
 
 #endif

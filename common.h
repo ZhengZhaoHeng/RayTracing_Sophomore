@@ -12,6 +12,9 @@
 #define GRIDSHIFT 4
 #define EPS 1e-4
 #define TRACEDEPTH 6
+#define KDTREE 1
+#define DOF 0
+#define SOFT 0
 #define PI 3.1415926535
 
 double sqr(double);
@@ -36,6 +39,10 @@ public:
 };
 
 double dot(Vector3D& v1, Vector3D& v2);
+double det(Vector3D& v1, Vector3D& v2, Vector3D& v3);
+void boxPro(Vector3D& p1, Vector3D& p2, Vector3D& n, double& mi, double& ma);
+void triPro(Vector3D& p1, Vector3D& p2, Vector3D& p3, Vector3D& n, double& mi, double &ma);
+bool check(double amax, double amin, double bmax, double bmin);
 
 class Plane
 {
@@ -81,8 +88,8 @@ public:
 		}
 		return false;
 	}
-private:
-	Vector3D _pos, _size;
+	Vector3D _size;
+	Vector3D _pos;
 };
 
 class Matrix

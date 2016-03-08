@@ -1,6 +1,7 @@
 
 
 #include "Raytracer.h"
+#include "KDTree.h"
 #include <cmath>
 
 Camera::Camera()
@@ -33,6 +34,8 @@ void Camera::initRender(Vector3D& pos, Vector3D& target)
 	_p2 = Vector3D(4, 3, 0);
 	_p3 = Vector3D(4, -3, 0);
 	_p4 = Vector3D(-4, -3, 0);
+	_axis_x = Vector3D(1, 0, 0);
+	_axis_y = Vector3D(0, 1, 0);
 	Vector3D zaxis = target - pos;
 	zaxis.normalize();
 	Vector3D up(0, 1, 0);
@@ -57,8 +60,13 @@ void Camera::initRender(Vector3D& pos, Vector3D& target)
 	_p2 = m.transform(_p2);
 	_p3 = m.transform(_p3);
 	_p4 = m.transform(_p4);
+	_axis_x = m.transform(_axis_x);
+	_axis_y = m.transform(_axis_y);
 	_dx = (_p2 - _p1) / _width;
 	_dy = (_p4 - _p1) / _height;
+	_aperture = 0.2;
+
+	_tree = new KDTree(_scene);
 }
 
 void Camera::renderPart(int x1, int x2, int y1, int y2)
@@ -72,28 +80,71 @@ void Camera::renderPart(int x1, int x2, int y1, int y2)
 		for (int i = x1; i < x2; i++)
 		{
 			//std::cout << i << ' ' << j << std::endl;
-			Color temp(0, 0, 0);
-			double dist = 0;
-			Primitive* prim = renderRay(cur_pos, temp);
 			int red, green, blue;
-			if (prim != last_primitive)
+			red = 0;
+			green = 0;
+			blue = 0;
+			if (DOF)
 			{
-				last_primitive = prim;
-				Color temp(0, 0, 0);
-				for (int tx = -1; tx < 2; tx++)
-					for (int ty = -1; ty < 2; ty++)
+				double rate = 4;
+				Vector3D _pos = (cur_pos - _origin) * rate + _origin;
+				int n_sample = 16;
+				for (int i = 0;i < n_sample; i++)
+				{
+					double angle = double(rand() % 2001) / 2000 * 2 * PI;
+					double r = double(rand() % 2001) / 2000 * _aperture;
+					Vector3D n_ori = _origin + r * cos(angle) * _axis_x + r * sin(angle) * _axis_y;
+					Color temp(0, 0, 0);
+					double dist = 0;
+					Primitive* prim = renderRay(_pos, n_ori, temp);
+					/*if (prim != last_primitive)
 					{
-						Primitive* prim = renderRay(cur_pos + _dx * tx / 2 + _dy * ty / 2, temp);
+						last_primitive = prim;
+						Color temp(0, 0, 0);
+						for (int tx = -1; tx < 2; tx++)
+							for (int ty = -1; ty < 2; ty++)
+							{
+								Primitive* prim = renderRay(cur_pos + _dx * tx / 2 + _dy * ty / 2, n_ori,temp);
+							}
+						red += (int)(temp._x * 256 / 9);
+						green += (int)(temp._y * 256 / 9);
+						blue += (int)(temp._z * 256 / 9);
 					}
-				red = (int)(temp._x * 256 / 9);
-				green = (int)(temp._y * 256 / 9);
-				blue = (int)(temp._z * 256 / 9);
+					else*/
+					{
+						red += (int)(temp._x * 256);
+						green += (int)(temp._y * 256);
+						blue += (int)(temp._z * 256);
+					}
+				}
+				red = red / n_sample;
+				green = green / n_sample;
+				blue = blue / n_sample;
 			}
 			else
 			{
-				red = (int)(temp._x * 256);
-				green = (int)(temp._y * 256);
-				blue = (int)(temp._z * 256);
+				Color temp(0, 0, 0);
+				double dist = 0;
+				Primitive* prim = renderRay(cur_pos, _origin, temp);
+				if (prim != last_primitive)
+				{
+					last_primitive = prim;
+					Color temp(0, 0, 0);
+					for (int tx = -1; tx < 2; tx++)
+						for (int ty = -1; ty < 2; ty++)
+						{
+							Primitive* prim = renderRay(cur_pos + _dx * tx / 2 + _dy * ty / 2, _origin, temp);
+						}
+					red = (int)(temp._x * 256 / 9);
+					green = (int)(temp._y * 256 / 9);
+					blue = (int)(temp._z * 256 / 9);
+				}
+				else
+				{
+					red = (int)(temp._x * 256);
+					green = (int)(temp._y * 256);
+					blue = (int)(temp._z * 256);
+				}
 			}
 			red = std::min(red, 255);
 			green = std::min(green, 255);
@@ -137,14 +188,17 @@ void Camera::render()
 	}
 }
 
-double Camera::calculateShade(Primitive* prim, Vector3D& pos, Vector3D& l)
+double Camera::calculateShade(Primitive* prim, Vector3D& pos, Vector3D& l, int depth)
 {
 	int n_sample = 1;
+	n_sample = n_sample / pow(4, depth-1);
+	n_sample = std::max(n_sample, 1);
 	int cnt = 0;
 	if (prim->get_type() == Primitive::SPHERE)
 	{
 		Sphere* sphere = (Sphere*)prim;
 		l = sphere->get_center() - pos;
+		if (SOFT == 0) return 0;
 		l.normalize();
 		for (int i = 0; i < n_sample; i++)
 		{
@@ -170,6 +224,7 @@ double Camera::calculateShade(Primitive* prim, Vector3D& pos, Vector3D& l)
 		double delta_x = box->get_size()._x * 0.25;
 		double delta_y = box->get_size()._z * 0.25;
 		l = box->get_pos() + box->get_size() * 0.5 - pos;
+		if (SOFT == 0) return 0;
 		l.normalize();
 		for (int i = 0; i < n_sample; i++)
 		{
@@ -211,22 +266,26 @@ Primitive* Camera::rayTracing(Ray& ray, Color& color, int depth, double r_index,
 
 			Primitive* light = _scene->get_light(i);
 			Vector3D l;
-			double shadow = calculateShade(light, pnt, l);
-			/*double shadow = 1.0;
-			//calculate the shadow
-			if (light->get_type() == Primitive::SPHERE)
+			double shadow = 1.0;
+			if (SOFT) shadow = calculateShade(light, pnt, l, depth);
+			else
 			{
-				double l_dist = l.length();
-				l.normalize();
-				_n_id++;
-				Ray l_ray(pnt + l * EPS, l, _n_id);
-				Primitive* obstacle;
-				findNest(l_ray, l_dist, obstacle);
-				if (obstacle != NULL && obstacle != light)
+				calculateShade(light, pnt, l, depth);
+				//calculate the shadow
+				if (light->get_type() == Primitive::SPHERE)
 				{
-					shadow = 0;
+					double l_dist = l.length();
+					l.normalize();
+					_n_id++;
+					Ray l_ray(pnt + l * EPS, l, _n_id);
+					Primitive* obstacle = NULL;
+					findNest(l_ray, l_dist, obstacle);
+					if (obstacle != NULL && obstacle != light)
+					{
+						shadow = 0;
+					}
 				}
-			}*/
+			}
 			//std::cout << shadow << std::endl;
 			if (shadow > EPS)
 			{
@@ -263,6 +322,8 @@ Primitive* Camera::rayTracing(Ray& ray, Color& color, int depth, double r_index,
 			if (drefl_rate > 0 && depth < 2)
 			{
 				int n_sample = 1;
+				n_sample = n_sample / pow(4, depth-1);
+				n_sample = std::max(n_sample, 1);
 				Vector3D n =  prim->get_normal(pnt);
 				Vector3D rp = ray.get_direction() - 2 * dot(ray.get_direction(), n) * n;
 				Vector3D rn1  = Vector3D(rp._z, rp._y ,-rp._x);
@@ -326,6 +387,7 @@ Primitive* Camera::rayTracing(Ray& ray, Color& color, int depth, double r_index,
 
 int Camera::findNest(Ray& ray, double& dist, Primitive*& prim)
 {
+	if (KDTREE) return _tree->findNest(ray, dist, prim);
 	int retval = MISS;
 	Vector3D dir, src;
 	Box e = _scene->get_extends();
@@ -513,21 +575,20 @@ int Camera::findNest(Ray& ray, double& dist, Primitive*& prim)
 	return retval;
 }
 
-Primitive* Camera::renderRay(Vector3D& pos, Color& color)
+Primitive* Camera::renderRay(Vector3D& pos, Vector3D& src, Color& color)
 {
-	Box e = _scene->get_extends();
-	Vector3D dir = pos - _origin;
+	Vector3D dir = pos - src;
 	dir.normalize();
 	_n_id++;
-	Ray r(_origin, dir, _n_id);
-	if (!e.contains(_origin))
+	Ray r(src, dir, _n_id);
+	/*if (!e.contains(_origin))
 	{
 		double bdist = 100000;
 		if (e.intersect(r, bdist))
 		{
 			r.set_origin(_origin + (bdist + EPS) * dir);
 		}
-	}
+	}*/
 	double dist = 0;
 	return rayTracing(r, color, 1, 1.0, dist);
 }
